@@ -192,7 +192,7 @@ class Client(object):
 
     # 初始化客户端数据
     def set_data(self, data):
-        self.data.append(self.download(data))
+        self.data.append(copy.deepcopy(data))
 
     # 得到本轮客户端训练结果
     def get_result(self):
