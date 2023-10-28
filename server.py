@@ -57,8 +57,8 @@ class Server(object):
                 
     # 聚合全局模型参数
     def aggregation(self):
-        weights = [report["local_weights"] for report in self.reports]
-        samples = [report["num_samples"] for report in self.reports]
+        weights = [model["local_weights"] for model in self.reports]
+        samples = [model["num_samples"] for model in self.reports]
         total_samples = sum(samples)
         global_weights = copy.deepcopy(weights[0])
         

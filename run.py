@@ -194,7 +194,7 @@ def run():
     # 设置 random 随机
     random.seed(args.seed)
     log_pth = './log/'
-    model_pth = './model/'
+    model_pth = './model_saved/'
     os.makedirs(log_pth, exist_ok=True)
     os.makedirs(model_pth, exist_ok=True)
     log_name = log_pth + args.train_mark + '.log'
@@ -270,6 +270,7 @@ def run():
     epoch_reward_list = [[] for i in range(args.num_servers)]
 
     def reset():
+        logging.info("reset clients and servers...")
         for client in client_list:
             client.reset_state()
         for server in server_list:
@@ -332,7 +333,7 @@ def run():
                 reward.append(pow(args.xi, server.fedavg_acc[-1] - args.target_acc) - 1)
                 acc_last.append(server.fedavg_acc[-1])
                 done.append(server.fedavg_acc[-1] > args.target_acc)
-            logging.info("acc_last: {}".format(acc_last))
+            logging.info("episode: {}, acc_last: {}".format(k, acc_last))
             next_states = client_to_states_param(args.num_servers, client_list, server_list)
             # 处理一下
             next_states = pca_compute(next_states, trans_matrix, args.device)
@@ -369,7 +370,7 @@ def run():
             epoch_reward_list[i].append(sum(reward_list[i]))
             reward_list[i] = []
         logging.info("epoch_reward_list: {}".format(epoch_reward_list))
-        model_save = model_pth + args.train_mark + '_' + str(k) +'_round_model'
+        model_save = model_pth + args.train_mark + '_' + str(r) +'_round_model'
         maddpg.save_model(model_save)
 
     # 保存 强化学习 模型

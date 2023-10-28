@@ -1,8 +1,10 @@
 data/
 __pycache__/
 Dataset/__pycache__/
+Model/__pycache__/
 log/
-model/
+model_saved/
 *.log
 *.csv
 *.txt
+*.pth
