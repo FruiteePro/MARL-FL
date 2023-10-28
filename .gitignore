@@ -1,0 +1,8 @@
+data/
+__pycache__/
+Dataset/__pycache__/
+log/
+model/
+*.log
+*.csv
+*.txt
