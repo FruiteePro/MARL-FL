@@ -27,7 +27,7 @@ class TwoLayerNet(nn.Module):
 class DDPG:
     # DDPG Agent
     def __init__(self, ddpg_id, state_dim, action_dim, critic_input_dim, hidden_dim,
-                actor_lr, critic_lr, device):
+                actor_lr, critic_lr, device, eps=0.1):
         self.ddpg_id = ddpg_id
         self.actor = TwoLayerNet(state_dim, hidden_dim, action_dim).to(device)
         self.actor_target = TwoLayerNet(state_dim, hidden_dim, action_dim).to(device)
@@ -41,10 +41,12 @@ class DDPG:
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_lr)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_lr)
 
+        self.eps = eps
+
     def take_action(self, state, explore=False):
         action = self.actor(state)
         if explore:
-            action = utils.gumbel_softmax(action)
+            action = utils.gumbel_softmax(action, self.eps)
         else:
             action = utils.onehot_from_logits(action)
         return action.detach().cpu().numpy()[0]
@@ -63,12 +65,13 @@ class DDPG:
 
 class MADDPG:
     def __init__(self, agents_num, device, actor_lr, critic_lr, hidden_dim, state_dims, action_dims, 
-                 critic_input_dim, gamma, tau):
+                 critic_input_dim, gamma, tau, eps=0.1):
         self.agents = []
         self.agents_num = agents_num
+        self.eps = eps
         for i in range(self.agents_num):
             self.agents.append(DDPG(i, state_dims[i], action_dims[i], critic_input_dim, hidden_dim,
-                                    actor_lr, critic_lr, device))
+                                    actor_lr, critic_lr, device, eps))
         self.gamma = gamma
         self.tau = tau
         self.device = device
@@ -112,7 +115,7 @@ class MADDPG:
 
         cur_agent.actor_optimizer.zero_grad()
         cur_actor_out = cur_agent.actor(obs[agent_id])
-        cur_act_vf_in = utils.gumbel_softmax(cur_actor_out)
+        cur_act_vf_in = utils.gumbel_softmax(cur_actor_out, self.eps)
         all_actor_acs = []
         for i, (pi, _obs) in enumerate(zip(self.policies, obs)):
             if i == agent_id:

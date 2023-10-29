@@ -259,7 +259,7 @@ def run():
 
     # 创建多智能体强化学习对象
     maddpg = MADDPG(args.num_servers, args.device, args.lr_actor, args.lr_critic, args.hidden_dim, state_dims,
-                action_dims, critic_input_dim, args.gamma, args.tau)
+                action_dims, critic_input_dim, args.gamma, args.tau, args.epsilon)
     replay_buffer = utils.ReplayBuffer(args.buffer_size)
     total_step = 0
 
@@ -330,9 +330,17 @@ def run():
                 server.aggregation()
                 server.global_eval()
                 sumE = sum([client_list[client_id].get_last_E() for client_id in train_client_list])
-                reward.append(pow(args.xi, server.fedavg_acc[-1] - args.target_acc) - 1)
+                # reward.append(pow(args.xi, server.fedavg_acc[-1] - args.target_acc) - 1)
                 acc_last.append(server.fedavg_acc[-1])
                 done.append(server.fedavg_acc[-1] > args.target_acc)
+            
+            for i, acc in enumerate(acc_last):
+                reward_val = pow(args.xi, acc - args.target_acc) - 1
+                for j, acc_e in enumerate(acc_last):
+                    if i != j:
+                        reward_val += pow(args.xi, acc_e - args.target_acc) * args.sigma
+                reward.append(reward_val)
+
             logging.info("episode: {}, acc_last: {}".format(k, acc_last))
             next_states = client_to_states_param(args.num_servers, client_list, server_list)
             # 处理一下

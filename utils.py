@@ -30,10 +30,10 @@ def gumbel_softmax_sample(logits, temperature):
         logits.device)
     return F.softmax(y / temperature, dim=1)
 
-def gumbel_softmax(logits, temperature=1.0):
+def gumbel_softmax(logits, temperature=1.0, eps=0.1):
     """从Gumbel-Softmax分布中采样,并进行离散化"""
     y = gumbel_softmax_sample(logits, temperature)
-    y_hard = onehot_from_logits(y)
+    y_hard = onehot_from_logits(y, eps)
     y = (y_hard.to(logits.device) - y).detach() + y
     # 返回一个y_hard的独热量,但是它的梯度是y,我们既能够得到一个与环境交互的离散动作,又可以
     # 正确地反传梯度

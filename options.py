@@ -31,6 +31,8 @@ def args_parser():
     parser.add_argument('--gamma', type=float, default=0.95)
     parser.add_argument('--tau', type=float, default=1e-2)
     parser.add_argument('--xi', type=float, default=64)
+    parser.add_argument('--epsilon', type=float, default=0.1)
+    parser.add_argument('--sigma', type=float, default=0.3, help='balance parameter between different models')
     parser.add_argument('--buffer_size', type=int, default=100000)
     parser.add_argument('--target_acc', type=float, default=0.5)
     parser.add_argument('--lr_actor', type=float, default=1e-2, help='learning rate for actor network')
