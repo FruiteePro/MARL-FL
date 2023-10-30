@@ -18,7 +18,23 @@ def enqueue(queue_obj, item):
         _ = queue_obj.get()
     queue_obj.put(item)
 
-
+def rayleigh_fading(std_dev, path_loss, num_samples=1):
+    """
+    生成服从Rayleigh分布的随机数样本，并加上路径损失
+    
+    参数:
+        num_samples (int): 生成的样本数量
+        mean (float): Rayleigh分布的均值
+        std_dev (float): Rayleigh分布的标准差
+        path_loss (float): 平均路径损失
+        
+    返回:
+        samples (numpy.ndarray): 生成的随机数样本数组
+    """
+    scale = std_dev / np.sqrt(2)  # 尺度参数
+    fading_samples = np.random.rayleigh(scale, size=num_samples)
+    path_loss_samples = fading_samples + path_loss
+    return path_loss_samples
 
 class Client(object):
     def __init__(self, client_id):
@@ -46,11 +62,12 @@ class Client(object):
         self.L = 0
         self.C = info["C"]
         self.N = info["N"]
-        self.h = info["h"]
+        self.h = rayleigh_fading(1, 0.001, 1)
         self.fList = info["fList"]
         self.BList = info["BList"]
         self.fsize = len(self.fList)
         self.Bsize = len(self.BList)
+        self.cycPreBit = 737
 
     # 设置客户端的工作量
     # def set_workload(self, workload, transload, model_id):
@@ -63,8 +80,10 @@ class Client(object):
 
     # 本轮客户端的调度
     def schedule(self):
-        self.W = sum([self.workload[i] for i in self.train_model_ids]) * 100
-        self.L = sum([self.transload[i] for i in self.train_model_ids])
+        self.W = float(sum([self.workload[i] for i in self.train_model_ids]))
+        self.L = float(sum([self.transload[i] for i in self.train_model_ids]))
+        self.W = self.W * 32 * 32 * 3 * self.cycPreBit
+        self.h = rayleigh_fading(1, 0.001, 1)
         bf, bB, t1, t2, E = min(self.fList), 0, 0, 0, 0
         if self.W == 0:
             return bf, bB, t1, t2, E

@@ -313,7 +313,7 @@ def run():
 
             for client_id in train_client_list:
                 client_list[client_id].update_models(global_model_params, deviceSelection)
-                client_list[client_id].set_time_limit(0.5)
+                client_list[client_id].set_time_limit(3)
             
             threads = [Thread(target=client_list[client_id].train_models) for client_id in train_client_list]
             [t.start() for t in threads]
