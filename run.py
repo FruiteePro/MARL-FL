@@ -184,6 +184,11 @@ def get_global_model_params(server_list):
         global_model_params.append(server.download_params().copy())
     return global_model_params
 
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+def getE_reward(sumE):
+    return sigmoid(1 / sumE) - 0.5
 
 # run
 def run():
@@ -287,7 +292,7 @@ def run():
         global_model_params = get_global_model_params(server_list)
         for client_id in train_client_list:
                 client_list[client_id].update_models(global_model_params, deviceSelection)
-                client_list[client_id].set_time_limit(0.5)
+                client_list[client_id].set_time_limit(5)
 
         # for client_id in train_client_list:
         #     client_list[client_id].train_models()
@@ -313,7 +318,7 @@ def run():
 
             for client_id in train_client_list:
                 client_list[client_id].update_models(global_model_params, deviceSelection)
-                client_list[client_id].set_time_limit(3)
+                client_list[client_id].set_time_limit(5)
             
             threads = [Thread(target=client_list[client_id].train_models) for client_id in train_client_list]
             [t.start() for t in threads]
@@ -325,20 +330,20 @@ def run():
             reward = []
             done = []
             acc_last = []
+            sum_List = []
             for server in server_list:
                 server.load_reports(reports)
                 server.aggregation()
                 server.global_eval()
-                sumE = sum([client_list[client_id].get_last_E() for client_id in train_client_list])
+                sumE = sum([client_list[client_id].get_last_E() for client_id in train_client_list]) / len(train_client_list)
+                sum_List.append(sumE)
                 # reward.append(pow(args.xi, server.fedavg_acc[-1] - args.target_acc) - 1)
                 acc_last.append(server.fedavg_acc[-1])
                 done.append(server.fedavg_acc[-1] > args.target_acc)
             
+            sumE = sum(sum_List) / len(sum_List)
             for i, acc in enumerate(acc_last):
-                reward_val = pow(args.xi, acc - args.target_acc) - 1
-                for j, acc_e in enumerate(acc_last):
-                    if i != j:
-                        reward_val += pow(args.xi, acc_e - args.target_acc) * args.sigma
+                reward_val = pow(args.xi, acc - args.target_acc) - 1 + getE_reward(sumE)
                 reward.append(reward_val)
 
             logging.info("episode: {}, acc_last: {}".format(k, acc_last))

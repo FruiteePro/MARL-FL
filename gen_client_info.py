@@ -22,8 +22,8 @@ for i in range(num_info):
     fList.sort()
 
     info_list.append({
-        "C": np.power(10, -27.0) * np.random.rand(),
-        "N": np.power(10, -9.0) * np.random.rand(),
+        "C": np.power(10, -27.0) * np.random.rand() * 0.5,
+        "N": np.power(10, -9.0) * np.random.rand() * 0.5,
         "fList": fList,
     })
 
