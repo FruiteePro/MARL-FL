@@ -7,7 +7,7 @@ def args_parser():
     parser = argparse.ArgumentParser()
     path_dir = os.path.dirname(__file__)
     parser.add_argument('--train_mark', type=str, default='10')
-    parser.add_argument('--model', type=str, default='CReFF', help='model name')
+    parser.add_argument('--model', type=str, default='MARL_train', help='model name')
     parser.add_argument('--path_cifar10', type=str, default=os.path.join(path_dir, 'data/CIFAR10/'))
     parser.add_argument('--path_cifar100', type=str, default=os.path.join(path_dir, 'data/CIFAR100/'))
     parser.add_argument('--num_classes', type=int, default=10)
@@ -15,7 +15,7 @@ def args_parser():
     parser.add_argument('--num_servers', type=int, default=3)
     parser.add_argument('--num_dataset', type=int, default=1)
     parser.add_argument('--num_online_clients', type=int, default=8)
-    parser.add_argument('--num_rounds', type=int, default=200)
+    parser.add_argument('--num_rounds', type=int, default=400)
     parser.add_argument('--num_marl_train_episodes', type=int, default=200)
     parser.add_argument('--num_marl_episode_length', type=int, default=500)
     parser.add_argument('--num_epochs_local_training', type=int, default=10)  #

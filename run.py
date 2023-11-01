@@ -394,10 +394,143 @@ def run():
     #     writer = csv.writer(file)
     #     writer.writerows(epoch_reward_list)
 
+def fedavg():
+    # 输入参数
+    args = args_parser()
+    # 设置 np.random 随机
+    random_state = np.random.RandomState(args.seed)
+    # 设置 random 随机
+    random.seed(args.seed)
+    log_pth = './log/'
+    model_pth = './model_saved/'
+    os.makedirs(log_pth, exist_ok=True)
+    os.makedirs(model_pth, exist_ok=True)
+    log_name = log_pth + args.train_mark + '.log'
+    log_format = '%(asctime)s - %(levelname)s - %(message)s'
+    logging.basicConfig(filename=log_name, level=logging.DEBUG, format=log_format)
+    # 获得数据集 分别存储每个模型的数据
+    # 标签到设备的索引列表
+    list_list_client2indices = []
+    # 数据包列表
+    list_indices2data = []
+    # 测试数据列表
+    list_data_global_test = []
 
+    # 创建数据
+    for i in range(args.num_servers):
+        # 获取数据
+        list_client2indices, indices2data, data_global_test = get_cifar10_data(args, args.seed + i)
+        # 添加到列表
+        list_list_client2indices.append(list_client2indices)
+        list_indices2data.append(indices2data)
+        list_data_global_test.append(data_global_test)
+
+    # 获取客户端信息
+    client_info = get_clients_info(args.num_clients)
+
+    # 存放客户和服务器对象
+    client_list = []
+    server_list = []
+
+    total_clients = [i for i in range(args.num_clients)]
+
+    # 联邦学习部分初始化
+
+    # 创建 server 对象
+    for i in range(args.num_servers):
+        server_temp = Server(i)
+        server_list.append(server_temp)
+        server_list[i].config(args)
+        server_list[i].set_data(list_data_global_test[i])
+
+    # 创建 client 对象
+    for client_id in range(args.num_clients):
+        client_list.append(Client(client_id))
+        client_list[client_id].config(args)
+        # 初始化 client 数据
+        for data_id in range(args.num_servers):
+            list_indices2data[data_id].load(list_list_client2indices[data_id][client_id])
+            data_client = list_indices2data[data_id]
+            client_list[client_id].set_data(data_client)
+        # 初始化 client 模型
+        client_list[client_id].set_models(args.num_servers)
+        # 初始化 clinet 硬件信息
+        client_list[client_id].setup(client_info[client_id])
+
+    done = []
+    acc_list = [[] for i in range(args.num_servers)]
+    Esum_list = []
+    for server in server_list:
+        done.append(False)
+
+    # 联邦学习
+    for r in tqdm(range(1, args.num_rounds+1), desc='fedavg-training'):
+        # 设备选择
+        actions = []
+        for i in range(args.num_servers):
+            selected = []
+            if not done[i]:
+                online_clients = random_state.choice(total_clients, args.num_online_clients, replace=False)
+                for i in range(args.num_clients):
+                    if i in online_clients:
+                        selected.append(1)
+                    else:
+                        selected.append(0)
+            else:
+                selected = [0 for i in range(args.num_clients)]
+            actions.append(selected)
+
+        train_client_list, deviceSelection = action_to_deviceSelection(args.num_clients, actions)
+
+        global_model_params = get_global_model_params(server_list)
+
+        for client_id in train_client_list:
+            client_list[client_id].update_models(global_model_params, deviceSelection)
+            client_list[client_id].set_time_limit(5)
+        
+        threads = [Thread(target=client_list[client_id].train_models) for client_id in train_client_list]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        # for client_id in train_client_list:
+        #     client_list[client_id].train_models()
+
+        reports = [client_list[client_id].get_result() for client_id in train_client_list]
+        done = []
+        acc_last = []
+        for i, server in enumerate(server_list):
+            server.load_reports(reports)
+            server.aggregation()
+            server.global_eval()
+            # reward.append(pow(args.xi, server.fedavg_acc[-1] - args.target_acc) - 1)
+            acc_last.append(server.fedavg_acc[-1])
+            done.append(server.fedavg_acc[-1] > args.target_acc)
+
+        sumE = sum([client_list[client_id].get_last_E() for client_id in train_client_list])
+        Esum_list[i].append(sumE)
+
+        for i, acc in enumerate(acc_last):
+            acc_list[i].append(acc)
+
+        logging.info("episode: {}, acc_last: {}".format(r, acc_last))
+
+        # if all item in done is True, if_unfinish = False
+        is_finish = all(done)
+
+        if is_finish:
+            break
+
+    logging.info("acc_list: {}".format(acc_list))
+    logging.info("Esum_list: {}".format(Esum_list))
+
+
+    
 
 if __name__ == '__main__':
-    run()
+    args = args_parser()
+    if (args.method == 'FedAvg'):
+        fedavg()
+    else:
+        run()
 
 
 
