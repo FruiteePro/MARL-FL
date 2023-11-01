@@ -498,15 +498,16 @@ def fedavg():
         done = []
         acc_last = []
         for i, server in enumerate(server_list):
-            server.load_reports(reports)
-            server.aggregation()
-            server.global_eval()
+            if not done[i]:
+                server.load_reports(reports)
+                server.aggregation()
+                server.global_eval()
             # reward.append(pow(args.xi, server.fedavg_acc[-1] - args.target_acc) - 1)
-            acc_last.append(server.fedavg_acc[-1])
-            done.append(server.fedavg_acc[-1] > args.target_acc)
+                acc_last.append(server.fedavg_acc[-1])
+                done[i] = server.fedavg_acc[-1] > args.target_acc
 
         sumE = sum([client_list[client_id].get_last_E() for client_id in train_client_list])
-        Esum_list[i].append(sumE)
+        Esum_list.append(sumE)
 
         for i, acc in enumerate(acc_last):
             acc_list[i].append(acc)
@@ -527,7 +528,8 @@ def fedavg():
 
 if __name__ == '__main__':
     args = args_parser()
-    if (args.method == 'FedAvg'):
+    if (args.model == 'FedAvg'):
+        logging.info('Running FedAvg...')
         fedavg()
     else:
         run()
