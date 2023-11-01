@@ -495,7 +495,6 @@ def fedavg():
         #     client_list[client_id].train_models()
 
         reports = [client_list[client_id].get_result() for client_id in train_client_list]
-        done = []
         acc_last = []
         for i, server in enumerate(server_list):
             if not done[i]:
