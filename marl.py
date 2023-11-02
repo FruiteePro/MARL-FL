@@ -44,12 +44,16 @@ class DDPG:
         self.eps = eps
         self.num_online_clients = num_online_clients
 
-    def take_action(self, state, explore=False):
+    def take_action(self, state, done, explore=False):
         action = self.actor(state)
         if explore:
             action = utils.gumbel_softmax(action, self.eps)
         else:
-            action = utils.khot_from_logits(action, self.num_online_clients)
+            if not done:
+                action = utils.khot_from_logits(action, self.num_online_clients)
+            else:
+                # all zero
+                action = torch.zeros_like(action)
         return action.detach().cpu().numpy()[0]
     
     def soft_update(self, net, target_net, tau):
@@ -92,14 +96,14 @@ class MADDPG:
     def target_policies(self):
         return [agent.actor_target for agent in self.agents]
     
-    def take_action(self, states, explore):
+    def take_action(self, states, done, explore):
         states = [
             torch.tensor([states[i]], dtype=torch.float, device=self.device)
             for i in range(self.agents_num)
         ]
         return [
-            agent.take_action(state, explore)
-            for agent, state in zip(self.agents, states)
+            agent.take_action(state, done_i, explore)
+            for agent, state, done_i in zip(self.agents, states, done)
         ]
     
     def update(self, samples, agent_id):

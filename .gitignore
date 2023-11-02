@@ -8,3 +8,4 @@ model_saved/
 *.csv
 *.txt
 *.pth
+.DS_Store

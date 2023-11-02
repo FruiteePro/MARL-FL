@@ -643,7 +643,7 @@ def FedMARL():
     # 联邦学习
     for r in tqdm(range(1, args.num_rounds+1), desc='fedmarl-training'):
         # 设备选择
-        actions = maddpg.take_action(states, explore=False)
+        actions = maddpg.take_action(states, done, explore=False)
 
         train_client_list, deviceSelection = action_to_deviceSelection(args.num_clients, actions)
 
