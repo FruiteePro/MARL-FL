@@ -22,15 +22,52 @@ def clients_indices(list_label2indices: list, num_classes: int, num_clients: int
     # 将样本数据数组进行合并，得到一个包含所有样本索引的列表
     indices_dirichlet = functools.reduce(lambda x, y: x + y, batch_indices)
     # 获得各个clinet的样本索引集
-    list_client2indices = partition_balance(indices_dirichlet, num_clients)
+    if non_iid_alpha == 100.0:
+        list_client2indices = partition_balance_iid(indices_dirichlet, num_clients)
+    else:
+        list_client2indices = partition_balance(indices_dirichlet, num_clients)
 
     return list_client2indices
 
+def partition_balance_iid(idxs, num_split: int):
+    num_list = []
+    sum_target = len(idxs) - 100 * 20
+    random.shuffle(idxs)
+    for i in range(num_split - 1):
+        num = np.random.randint(0, min(1500, sum_target))
+        num_list.append(num + 100)
+        sum_target -= num
+
+    num_list.append(sum_target + 100)
+
+    # 计算每个client的样本数，和剩余的样本数量
+    num_per_part, r = len(idxs) // num_split, len(idxs) % num_split
+    parts = []
+    i, r_used = 0, 0
+    k = 0
+    # 如果还有余数可以用，就将 num_per_part + 1 分给子列表
+    # 如果没有，就将 num_per_part 分给子列表
+    while i < len(idxs):
+        parts.append(idxs[i:(i + num_list[k])])
+        i += num_list[k]
+        k += 1
+
+    # while i < len(idxs):
+    #     if r_used < r:
+    #         parts.append(idxs[i:(i + num_list[k] + 1)])
+    #         i += num_per_part + 1
+    #         k += 1
+    #         r_used += 1
+    #     else:
+    #         parts.append(idxs[i:(i + num_per_part)])
+    #         i += num_per_part
+    random.shuffle(parts)
+    return parts
 
 def partition_balance(idxs, num_split: int):
     num_list = []
     sum_target = len(idxs) - 100 * 20
-    random.shuffle(idxs)
+    # random.shuffle(idxs)
     for i in range(num_split - 1):
         num = np.random.randint(0, min(1500, sum_target))
         num_list.append(num + 100)

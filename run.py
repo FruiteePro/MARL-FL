@@ -562,8 +562,6 @@ def FedMARL():
     client_list = []
     server_list = []
 
-    total_clients = [i for i in range(args.num_clients)]
-
     # 联邦学习部分初始化
 
     # 创建 server 对象

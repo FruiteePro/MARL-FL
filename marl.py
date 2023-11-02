@@ -68,10 +68,10 @@ class DDPG:
         torch.save(self.critic_target.state_dict(), name + '_critic_target.pth')
 
     def load_model(self, model):
-        self.actor.load_state_dict(model['actor'])
-        self.actor_target.load_state_dict(model['actor_target'])
-        self.critic.load_state_dict(model['critic'])
-        self.critic_target.load_state_dict(model['critic_target'])
+        self.actor.load_state_dict(copy.deepcopy(model['actor']))
+        self.actor_target.load_state_dict(copy.deepcopy(model['actor_target']))
+        self.critic.load_state_dict(copy.deepcopy(model['critic']))
+        self.critic_target.load_state_dict(copy.deepcopy(model['critic_target']))
 
 
 class MADDPG:
@@ -155,6 +155,7 @@ class MADDPG:
             actor_target_model_path = model_path + str(i) + '_actor_target.pth'
             critic_model_path = model_path + str(i) + '_critic.pth'
             critic_target_model_path = model_path + str(i) + '_critic_target.pth'
+            logging.info('load model from {}'.format(actor_model_path))
             model_dict['actor'] = torch.load(actor_model_path)
             model_dict['actor_target'] = torch.load(actor_target_model_path)
             model_dict['critic'] = torch.load(critic_model_path)
