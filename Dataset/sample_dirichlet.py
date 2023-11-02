@@ -11,9 +11,9 @@ def clients_indices_noniid(list_label2indices: list, num_classes: int, num_clien
     num_list_clients_indices = label_indices2indices(list_label2indices)
     len_idx = len(num_list_clients_indices)
     # 每个设备要分配的样本数量
-    client_idx_num = len_idx // num_clients
+    client_idx_num = (int) (len_idx // num_clients)
     # 每个设备主要类的样本数量
-    one_class_pre_client = client_idx_num * non_iid_alpha
+    one_class_pre_client = (int) (client_idx_num * non_iid_alpha)
     # 分配结果
     list_client2indices = [[] for _ in range(num_clients)]
 
@@ -28,7 +28,9 @@ def clients_indices_noniid(list_label2indices: list, num_classes: int, num_clien
     num_list_clients_indices = label_indices2indices(list_label2indices)
     random.shuffle(num_list_clients_indices)
     for i in range(num_clients):
-        list_client2indices[i].extend(num_list_clients_indices[i * client_idx_num: (i + 1) * client_idx_num])
+        indices_num = client_idx_num - len(list_client2indices[i])
+        list_client2indices[i].extend(num_list_clients_indices[:indices_num])
+        num_list_clients_indices = num_list_clients_indices[indices_num:]
 
     return list_client2indices
 

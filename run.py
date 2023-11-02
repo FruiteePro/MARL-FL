@@ -4,7 +4,7 @@ import utils
 from marl import MADDPG, TwoLayerNet
 from Dataset.long_tailed_cifar10 import train_long_tail, get_100_samples, get_imb_samples
 from Dataset.dataset import classify_label, show_clients_data_distribution, Indices2Dataset, TensorDataset, get_class_num
-from Dataset.sample_dirichlet import clients_indices
+from Dataset.sample_dirichlet import clients_indices, clients_indices_noniid
 from Dataset.Gradient_matching_loss import match_loss
 from sklearn.decomposition import PCA
 import logging
@@ -40,7 +40,7 @@ def get_cifar10_data(args, seed_num):
     _, list_label2indices_train_new = train_long_tail(copy.deepcopy(list_label2indices), args.num_classes,
                                                        args.imb_factor, args.imb_type)
 
-    list_client2indices = clients_indices(copy.deepcopy(list_label2indices_train_new), args.num_classes,
+    list_client2indices = clients_indices_noniid(copy.deepcopy(list_label2indices_train_new), args.num_classes,
                                             args.num_clients, args.non_iid_alpha, seed_num)
     original_dict_per_client = show_clients_data_distribution(data_local_training, list_client2indices,
                                                                 args.num_classes)

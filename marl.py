@@ -106,7 +106,7 @@ class MADDPG:
             for agent, state, done_i in zip(self.agents, states, done)
         ]
     
-    def take_action(self, states, explore):
+    def take_action2(self, states, explore):
         states = [
             torch.tensor([states[i]], dtype=torch.float, device=self.device)
             for i in range(self.agents_num)
