@@ -79,7 +79,7 @@ def get_mnist_data(args):
     random_state = np.random.RandomState(args.seed)
     transform_all = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,)),
+        transforms.Normalize((0.5,), (0.5,))
     ])
 
     data_local_training = datasets.MNIST(args.path_mnist, train=True, download=True, transform=transform_all)

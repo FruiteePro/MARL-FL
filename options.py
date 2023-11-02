@@ -10,6 +10,7 @@ def args_parser():
     parser.add_argument('--model', type=str, default='MARL_train', help='model name')
     parser.add_argument('--path_cifar10', type=str, default=os.path.join(path_dir, 'data/CIFAR10/'))
     parser.add_argument('--path_cifar100', type=str, default=os.path.join(path_dir, 'data/CIFAR100/'))
+    parser.add_argument('--path_mnist', type=str, default=os.path.join(path_dir, 'data/MNIST/'))
     parser.add_argument('--model_ID', type=str, default='102801')
     parser.add_argument('--model_round_ID', type=str, default='86')
     parser.add_argument('--num_classes', type=int, default=10)
