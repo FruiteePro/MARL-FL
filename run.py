@@ -158,11 +158,11 @@ def client_to_states_param(num_servers, client_list:list, server_list:list):
         states.append(matrix)
     return states
 
-def pca_first(states):
+def pca_first(states, num_client):
     new_states = []
     trans_matrix = []
     for state in states:
-        pca = PCA(n_components=20)
+        pca = PCA(n_components=num_client)
         state = state.cpu().numpy()
         state = pca.fit_transform(state)
         new_states.append(state.flatten().tolist())
@@ -258,7 +258,7 @@ def run():
     action_dims = []
 
     for i in range(args.num_servers):
-        state_dims.append(420)
+        state_dims.append((args.num_clients * (args.num_clients + 1)))
         action_dims.append(args.num_clients)
     critic_input_dim = sum(state_dims) + sum(action_dims)
 
@@ -296,9 +296,12 @@ def run():
 
         # for client_id in train_client_list:
         #     client_list[client_id].train_models()
-        threads = [Thread(target=client_list[client_id].train_models) for client_id in train_client_list]
-        [t.start() for t in threads]
-        [t.join() for t in threads]
+        group_size = 50  # 每组的大小
+        for i in range(0, len(train_client_list), group_size):
+            group = train_client_list[i:i+group_size]  # 获取当前组的client列表
+            threads = [Thread(target=client_list[client_id].train_models) for client_id in group]
+            [t.start() for t in threads]
+            [t.join() for t in threads]
 
         reports = [client_list[client_id].get_result() for client_id in train_client_list]
         for server in server_list:
@@ -306,12 +309,12 @@ def run():
             server.aggregation()
             server.global_eval()
         states = client_to_states_param(args.num_servers, client_list, server_list)
-        states, trans_matrix = pca_first(states)
+        states, trans_matrix = pca_first(states, args.num_clients)
 
         for k in tqdm(range(1, args.num_marl_episode_length+1), desc='episode-training'):
             if not if_unfinish:
                 break
-            actions = maddpg.take_action(states, explore=True)
+            actions = maddpg.take_action2(states, explore=True)
             train_client_list, deviceSelection = action_to_deviceSelection(args.num_clients, actions)
 
             global_model_params = get_global_model_params(server_list)
@@ -589,7 +592,7 @@ def FedMARL():
     action_dims = []
 
     for i in range(args.num_servers):
-        state_dims.append(420)
+        state_dims.append((args.num_clients * (args.num_clients + 1)))
         action_dims.append(args.num_clients)
     critic_input_dim = sum(state_dims) + sum(action_dims)
 
@@ -635,11 +638,11 @@ def FedMARL():
         server.aggregation()
         server.global_eval()
     states = client_to_states_param(args.num_servers, client_list, server_list)
-    states, trans_matrix = pca_first(states)
+    states, trans_matrix = pca_first(states, args.num_clients)
 
-    logging.info("start Fed-learning...")
+    logging.info("start FedMARL...")
     # 联邦学习
-    for r in tqdm(range(1, args.num_rounds+1), desc='fedmarl-training'):
+    for r in tqdm(range(1, args.num_rounds+1), desc='fedmarl-running'):
         # 设备选择
         actions = maddpg.take_action(states, done, explore=False)
 

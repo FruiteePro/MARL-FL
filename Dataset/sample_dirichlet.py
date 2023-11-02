@@ -5,6 +5,8 @@ import numpy as np
 import random
 
 def clients_indices_noniid(list_label2indices: list, num_classes: int, num_clients: int, non_iid_alpha: float, seed=None):
+    if non_iid_alpha == 100.0:
+        return clients_indices(list_label2indices, num_classes, num_clients, non_iid_alpha, seed)
     for label2indices in list_label2indices:
         random.shuffle(label2indices)
     # 总样本数量
@@ -32,6 +34,7 @@ def clients_indices_noniid(list_label2indices: list, num_classes: int, num_clien
         list_client2indices[i].extend(num_list_clients_indices[:indices_num])
         num_list_clients_indices = num_list_clients_indices[indices_num:]
 
+    random.shuffle(list_client2indices)
     return list_client2indices
 
 

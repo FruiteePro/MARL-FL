@@ -17,6 +17,20 @@ def onehot_from_logits(logits, eps=0.01):
         for i, r in enumerate(torch.rand(logits.shape[0]))
     ])
 
+def k_onehot_from_logits(logits, eps=0.01):
+    ''' 生成最优动作的独热 (one-hot) 形式 '''
+    argmax_acs = (logits == logits.max(1, keepdim=True)[0]).float()
+    logits = logits - argmax_acs
+    # 生成随机动作,转换成独热形式
+    rand_acs = torch.autograd.Variable(torch.eye(logits.shape[1])[[
+        np.random.choice(range(logits.shape[1]), size=logits.shape[0])
+    ]], requires_grad=False).to(logits.device)
+    # 通过epsilon-贪婪算法来选择用哪个动作
+    return torch.stack([
+        argmax_acs[i] if r > eps else rand_acs[i]
+        for i, r in enumerate(torch.rand(logits.shape[0]))
+    ]), logits
+
 # def khot_from_logits(logits, k):
 #     ''' 生成最优动作的K热编码 (k-hot encoding) 形式 '''
 #     top_k_acs = torch.topk(logits, k, dim=1)[1]
@@ -26,20 +40,27 @@ def onehot_from_logits(logits, eps=0.01):
 
 def khot_from_logits(logits, k, eps=0.01):
     ''' 生成最优动作的K热编码 (k-hot encoding) 形式 '''
-    top_k_acs = torch.topk(logits, k, dim=1)[1]
-    khot_acs = torch.zeros_like(logits)
-    khot_acs.scatter_(1, top_k_acs, 1)
+    new_logits = logits
+    for i in range(k):
+        action, new_logits = k_onehot_from_logits(new_logits, eps)
+    return action
 
-    # 通过epsilon-贪婪算法来选择用哪个动作
-    rand_acs = torch.autograd.Variable(torch.zeros_like(logits))
-    rand_indices = np.random.choice(range(logits.shape[1]), size=(logits.shape[0], k), replace=False)
-    for i in range(logits.shape[0]):
-        rand_acs[i][rand_indices[i]] = 1
 
-    return torch.stack([
-        khot_acs[i] if r > eps else rand_acs[i]
-        for i, r in enumerate(torch.rand(logits.shape[0]))
-    ])
+    # ''' 生成最优动作的K热编码 (k-hot encoding) 形式 '''
+    # top_k_acs = torch.topk(logits, k, dim=1)[1]
+    # khot_acs = torch.zeros_like(logits)
+    # khot_acs.scatter_(1, top_k_acs, 1)
+
+    # # 通过epsilon-贪婪算法来选择用哪个动作
+    # rand_acs = torch.autograd.Variable(torch.zeros_like(logits))
+    # rand_indices = np.random.choice(range(logits.shape[1]), size=(logits.shape[0], k), replace=False)
+    # for i in range(logits.shape[0]):
+    #     rand_acs[i][rand_indices[i]] = 1
+
+    # return torch.stack([
+    #     khot_acs[i] if r > eps else rand_acs[i]
+    #     for i, r in enumerate(torch.rand(logits.shape[0]))
+    # ])
 
 
 def sample_gumbel(shape, eps=1e-20, tens_type=torch.FloatTensor):
