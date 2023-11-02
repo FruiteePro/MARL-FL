@@ -695,8 +695,9 @@ def FedMARL():
 if __name__ == '__main__':
     args = args_parser()
     if (args.model == 'FedAvg'):
-        logging.info('Running FedAvg...')
         fedavg()
+    elif (args.model == 'FedMARL'):
+        FedMARL()
     else:
         run()
 
