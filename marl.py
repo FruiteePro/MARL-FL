@@ -50,7 +50,7 @@ class DDPG:
             action = utils.gumbel_softmax(action, self.eps)
         else:
             if not done:
-                action = utils.khot_from_logits(action, self.num_online_clients)
+                action = utils.khot_from_logits(action, self.num_online_clients, self.eps)
             else:
                 # all zero
                 action = torch.zeros_like(action)
@@ -106,6 +106,16 @@ class MADDPG:
             for agent, state, done_i in zip(self.agents, states, done)
         ]
     
+    def take_action(self, states, explore):
+        states = [
+            torch.tensor([states[i]], dtype=torch.float, device=self.device)
+            for i in range(self.agents_num)
+        ]
+        return [
+            agent.take_action(state, False, explore)
+            for agent, state in zip(self.agents, states)
+        ]
+
     def update(self, samples, agent_id):
         obs, act, rew, next_obs, done = samples
         cur_agent = self.agents[agent_id]

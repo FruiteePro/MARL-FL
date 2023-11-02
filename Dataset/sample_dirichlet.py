@@ -64,38 +64,56 @@ def partition_balance_iid(idxs, num_split: int):
     random.shuffle(parts)
     return parts
 
+# def partition_balance(idxs, num_split: int):
+#     num_list = []
+#     sum_target = len(idxs) - 100 * 20
+#     # random.shuffle(idxs)
+#     for i in range(num_split - 1):
+#         num = np.random.randint(0, min(1500, sum_target))
+#         num_list.append(num + 100)
+#         sum_target -= num
+
+#     num_list.append(sum_target + 100)
+
+#     # 计算每个client的样本数，和剩余的样本数量
+#     num_per_part, r = len(idxs) // num_split, len(idxs) % num_split
+#     parts = []
+#     i, r_used = 0, 0
+#     k = 0
+#     # 如果还有余数可以用，就将 num_per_part + 1 分给子列表
+#     # 如果没有，就将 num_per_part 分给子列表
+#     while i < len(idxs):
+#         parts.append(idxs[i:(i + num_list[k])])
+#         i += num_list[k]
+#         k += 1
+
+#     # while i < len(idxs):
+#     #     if r_used < r:
+#     #         parts.append(idxs[i:(i + num_list[k] + 1)])
+#     #         i += num_per_part + 1
+#     #         k += 1
+#     #         r_used += 1
+#     #     else:
+#     #         parts.append(idxs[i:(i + num_per_part)])
+#     #         i += num_per_part
+#     random.shuffle(parts)
+#     return parts
+
 def partition_balance(idxs, num_split: int):
-    num_list = []
-    sum_target = len(idxs) - 100 * 20
-    # random.shuffle(idxs)
-    for i in range(num_split - 1):
-        num = np.random.randint(0, min(1500, sum_target))
-        num_list.append(num + 100)
-        sum_target -= num
-
-    num_list.append(sum_target + 100)
-
     # 计算每个client的样本数，和剩余的样本数量
     num_per_part, r = len(idxs) // num_split, len(idxs) % num_split
     parts = []
     i, r_used = 0, 0
-    k = 0
     # 如果还有余数可以用，就将 num_per_part + 1 分给子列表
     # 如果没有，就将 num_per_part 分给子列表
     while i < len(idxs):
-        parts.append(idxs[i:(i + num_list[k])])
-        i += num_list[k]
-        k += 1
-
-    # while i < len(idxs):
-    #     if r_used < r:
-    #         parts.append(idxs[i:(i + num_list[k] + 1)])
-    #         i += num_per_part + 1
-    #         k += 1
-    #         r_used += 1
-    #     else:
-    #         parts.append(idxs[i:(i + num_per_part)])
-    #         i += num_per_part
+        if r_used < r:
+            parts.append(idxs[i:(i + num_per_part + 1)])
+            i += num_per_part + 1
+            r_used += 1
+        else:
+            parts.append(idxs[i:(i + num_per_part)])
+            i += num_per_part
     random.shuffle(parts)
     return parts
 
