@@ -18,6 +18,14 @@ def onehot_from_logits(logits, eps=0.01):
         for i, r in enumerate(torch.rand(logits.shape[0]))
     ])
 
+def khot_from_logits(logits, k):
+    ''' 生成最优动作的K热编码 (k-hot encoding) 形式 '''
+    top_k_acs = torch.topk(logits, k, dim=1)[1]
+    khot_acs = torch.zeros_like(logits)
+    khot_acs.scatter_(1, top_k_acs, 1)
+    return khot_acs.float()
+
+
 def sample_gumbel(shape, eps=1e-20, tens_type=torch.FloatTensor):
     """从Gumbel(0,1)分布中采样"""
     U = torch.autograd.Variable(tens_type(*shape).uniform_(),

@@ -1,7 +1,7 @@
 from server import Server
 from client import Client
 import utils
-from marl import MADDPG
+from marl import MADDPG, TwoLayerNet
 from Dataset.long_tailed_cifar10 import train_long_tail, get_100_samples, get_imb_samples
 from Dataset.dataset import classify_label, show_clients_data_distribution, Indices2Dataset, TensorDataset, get_class_num
 from Dataset.sample_dirichlet import clients_indices
@@ -408,6 +408,7 @@ def fedavg():
     log_name = log_pth + args.train_mark + '.log'
     log_format = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(filename=log_name, level=logging.DEBUG, format=log_format)
+    logging.info('Running FedAvg...')
     # 获得数据集 分别存储每个模型的数据
     # 标签到设备的索引列表
     list_list_client2indices = []
@@ -522,6 +523,172 @@ def fedavg():
     logging.info("acc_list: {}".format(acc_list))
     logging.info("Esum_list: {}".format(Esum_list))
 
+def FedMARL():
+    # 输入参数
+    args = args_parser()
+    # 设置 np.random 随机
+    random_state = np.random.RandomState(args.seed)
+    # 设置 random 随机
+    random.seed(args.seed)
+    log_pth = './log/'
+    model_pth = './model_saved/'
+    os.makedirs(log_pth, exist_ok=True)
+    os.makedirs(model_pth, exist_ok=True)
+    log_name = log_pth + args.train_mark + '.log'
+    log_format = '%(asctime)s - %(levelname)s - %(message)s'
+    logging.basicConfig(filename=log_name, level=logging.DEBUG, format=log_format)
+    logging.info('Running FedMARL...')
+    # 获得数据集 分别存储每个模型的数据
+    # 标签到设备的索引列表
+    list_list_client2indices = []
+    # 数据包列表
+    list_indices2data = []
+    # 测试数据列表
+    list_data_global_test = []
+
+    # 创建数据
+    for i in range(args.num_servers):
+        # 获取数据
+        list_client2indices, indices2data, data_global_test = get_cifar10_data(args, args.seed + i)
+        # 添加到列表
+        list_list_client2indices.append(list_client2indices)
+        list_indices2data.append(indices2data)
+        list_data_global_test.append(data_global_test)
+
+    # 获取客户端信息
+    client_info = get_clients_info(args.num_clients)
+
+    # 存放客户和服务器对象
+    client_list = []
+    server_list = []
+
+    total_clients = [i for i in range(args.num_clients)]
+
+    # 联邦学习部分初始化
+
+    # 创建 server 对象
+    for i in range(args.num_servers):
+        server_temp = Server(i)
+        server_list.append(server_temp)
+        server_list[i].config(args)
+        server_list[i].set_data(list_data_global_test[i])
+
+    # 创建 client 对象
+    for client_id in range(args.num_clients):
+        client_list.append(Client(client_id))
+        client_list[client_id].config(args)
+        # 初始化 client 数据
+        for data_id in range(args.num_servers):
+            list_indices2data[data_id].load(list_list_client2indices[data_id][client_id])
+            data_client = list_indices2data[data_id]
+            client_list[client_id].set_data(data_client)
+        # 初始化 client 模型
+        client_list[client_id].set_models(args.num_servers)
+        # 初始化 clinet 硬件信息
+        client_list[client_id].setup(client_info[client_id])
+
+    state_dims = []
+    action_dims = []
+
+    for i in range(args.num_servers):
+        state_dims.append(420)
+        action_dims.append(args.num_clients)
+    critic_input_dim = sum(state_dims) + sum(action_dims)
+
+    # 创建多智能体强化学习对象
+    maddpg = MADDPG(args.num_servers, args.device, args.lr_actor, args.lr_critic, args.hidden_dim, state_dims,
+                action_dims, critic_input_dim, args.gamma, args.tau, args.epsilon, args.num_online_clients)
+    
+    marl_model_id_idx = model_pth + args.model_ID + '_' + args.model_round_ID + '_round_model_ddpg_'
+    maddpg.load_model(marl_model_id_idx)
+
+
+    done = []
+    acc_list = [[] for i in range(args.num_servers)]
+    Esum_list = []
+    for server in server_list:
+        done.append(False)
+
+    def reset():
+        logging.info("reset clients and servers...")
+        for client in client_list:
+            client.reset_state()
+        for server in server_list:
+            server.reset_state()
+
+    reset()
+    # 全部设备先训练一次
+    train_client_list = [i for i in range(args.num_clients)]
+    deviceSelection = [[i for i in range(args.num_servers)] for j in range(args.num_clients)]
+    global_model_params = get_global_model_params(server_list)
+    for client_id in train_client_list:
+            client_list[client_id].update_models(global_model_params, deviceSelection)
+            client_list[client_id].set_time_limit(5)
+
+    # for client_id in train_client_list:
+    #     client_list[client_id].train_models()
+    threads = [Thread(target=client_list[client_id].train_models) for client_id in train_client_list]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+
+    reports = [client_list[client_id].get_result() for client_id in train_client_list]
+    for server in server_list:
+        server.load_reports(reports)
+        server.aggregation()
+        server.global_eval()
+    states = client_to_states_param(args.num_servers, client_list, server_list)
+    states, trans_matrix = pca_first(states)
+
+    logging.info("start Fed-learning...")
+    # 联邦学习
+    for r in tqdm(range(1, args.num_rounds+1), desc='fedmarl-training'):
+        # 设备选择
+        actions = maddpg.take_action(states, explore=False)
+
+        train_client_list, deviceSelection = action_to_deviceSelection(args.num_clients, actions)
+
+        global_model_params = get_global_model_params(server_list)
+
+        for client_id in train_client_list:
+            client_list[client_id].update_models(global_model_params, deviceSelection)
+            client_list[client_id].set_time_limit(5)
+        
+        threads = [Thread(target=client_list[client_id].train_models) for client_id in train_client_list]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        # for client_id in train_client_list:
+        #     client_list[client_id].train_models()
+
+        reports = [client_list[client_id].get_result() for client_id in train_client_list]
+        acc_last = []
+        for i, server in enumerate(server_list):
+            if not done[i]:
+                server.load_reports(reports)
+                server.aggregation()
+                server.global_eval()
+            # reward.append(pow(args.xi, server.fedavg_acc[-1] - args.target_acc) - 1)
+                acc_last.append(server.fedavg_acc[-1])
+                done[i] = server.fedavg_acc[-1] > args.target_acc
+
+        sumE = sum([client_list[client_id].get_last_E() for client_id in train_client_list])
+        Esum_list.append(sumE)
+
+        for i, acc in enumerate(acc_last):
+            acc_list[i].append(acc)
+        
+        next_states = client_to_states_param(args.num_servers, client_list, server_list)
+        states = pca_compute(next_states, trans_matrix, args.device)
+
+        logging.info("episode: {}, acc_last: {}".format(r, acc_last))
+
+        # if all item in done is True, if_unfinish = False
+        is_finish = all(done)
+
+        if is_finish:
+            break
+
+    logging.info("acc_list: {}".format(acc_list))
+    logging.info("Esum_list: {}".format(Esum_list))
 
     
 

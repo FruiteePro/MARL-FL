@@ -27,7 +27,7 @@ class TwoLayerNet(nn.Module):
 class DDPG:
     # DDPG Agent
     def __init__(self, ddpg_id, state_dim, action_dim, critic_input_dim, hidden_dim,
-                actor_lr, critic_lr, device, eps=0.1):
+                actor_lr, critic_lr, device, eps=0.1, num_online_clients=1):
         self.ddpg_id = ddpg_id
         self.actor = TwoLayerNet(state_dim, hidden_dim, action_dim).to(device)
         self.actor_target = TwoLayerNet(state_dim, hidden_dim, action_dim).to(device)
@@ -42,13 +42,14 @@ class DDPG:
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_lr)
 
         self.eps = eps
+        self.num_online_clients = num_online_clients
 
     def take_action(self, state, explore=False):
         action = self.actor(state)
         if explore:
             action = utils.gumbel_softmax(action, self.eps)
         else:
-            action = utils.onehot_from_logits(action)
+            action = utils.khot_from_logits(action, self.num_online_clients)
         return action.detach().cpu().numpy()[0]
     
     def soft_update(self, net, target_net, tau):
@@ -62,16 +63,22 @@ class DDPG:
         torch.save(self.critic.state_dict(), name + '_critic.pth')
         torch.save(self.critic_target.state_dict(), name + '_critic_target.pth')
 
+    def load_model(self, model):
+        self.actor.load_state_dict(model['actor'])
+        self.actor_target.load_state_dict(model['actor_target'])
+        self.critic.load_state_dict(model['critic'])
+        self.critic_target.load_state_dict(model['critic_target'])
+
 
 class MADDPG:
     def __init__(self, agents_num, device, actor_lr, critic_lr, hidden_dim, state_dims, action_dims, 
-                 critic_input_dim, gamma, tau, eps=0.1):
+                 critic_input_dim, gamma, tau, eps=0.1, num_online_clients=1):
         self.agents = []
         self.agents_num = agents_num
         self.eps = eps
         for i in range(self.agents_num):
             self.agents.append(DDPG(i, state_dims[i], action_dims[i], critic_input_dim, hidden_dim,
-                                    actor_lr, critic_lr, device, eps))
+                                    actor_lr, critic_lr, device, eps, num_online_clients))
         self.gamma = gamma
         self.tau = tau
         self.device = device
@@ -136,6 +143,22 @@ class MADDPG:
     def save_model(self, mark):
         for agent in self.agents:
             agent.save_model(mark)
+
+    def load_model(self, model_path):
+        for i in range(self.agents_num):
+            model_dict = {}
+            actor_model_path = model_path + str(i) + '_actor.pth'
+            actor_target_model_path = model_path + str(i) + '_actor_target.pth'
+            critic_model_path = model_path + str(i) + '_critic.pth'
+            critic_target_model_path = model_path + str(i) + '_critic_target.pth'
+            model_dict['actor'] = torch.load(actor_model_path)
+            model_dict['actor_target'] = torch.load(actor_target_model_path)
+            model_dict['critic'] = torch.load(critic_model_path)
+            model_dict['critic_target'] = torch.load(critic_target_model_path)
+            self.agents[i].load_model(model_dict)
+
+
+
 
 
 
