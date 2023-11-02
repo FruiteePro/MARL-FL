@@ -1,7 +1,40 @@
 import math
 import functools
+from Dataset.dataset import label_indices2indices
 import numpy as np
 import random
+
+def clients_indices_noniid(list_label2indices: list, num_classes: int, num_clients: int, non_iid_alpha: float, seed=None):
+    for label2indices in list_label2indices:
+        random.shuffle(label2indices)
+    # 总样本数量
+    num_list_clients_indices = label_indices2indices(list_label2indices)
+    len_idx = len(num_list_clients_indices)
+    # 每个设备要分配的样本数量
+    client_idx_num = len_idx // num_clients
+    # 每个设备主要类的样本数量
+    one_class_pre_client = client_idx_num * non_iid_alpha
+    # 分配结果
+    list_client2indices = [[] for _ in range(num_clients)]
+
+    for i in range(num_clients):
+        indices_idx = i % num_classes
+        indices = list_label2indices[indices_idx]
+        list_client2indices[i].extend(indices[:one_class_pre_client])
+        indices = indices[one_class_pre_client:]
+        list_label2indices[indices_idx] = indices
+    
+    # 将剩余的样本随机分配给各个设备
+    num_list_clients_indices = label_indices2indices(list_label2indices)
+    random.shuffle(num_list_clients_indices)
+    for i in range(num_clients):
+        list_client2indices[i].extend(num_list_clients_indices[i * client_idx_num: (i + 1) * client_idx_num])
+
+    return list_client2indices
+
+
+
+    
 
 # 将数据集划分给多个客户端
 def clients_indices(list_label2indices: list, num_classes: int, num_clients: int, non_iid_alpha: float, seed=None):
