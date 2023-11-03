@@ -49,9 +49,9 @@ def get_cifar10_data(args, seed_num):
     return list_client2indices, indices2data, data_global_test
 
 # 处理 cifar100 数据集
-def get_cifar100_data(args):
+def get_cifar100_data(args, seed_num):
     # logging.info('Loading cifar100 data...')
-    random_state = np.random.RandomState(args.seed)
+    random_state = np.random.RandomState(seed_num)
     transform_all = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.5071, 0.4865, 0.4409), (0.2009, 0.1984, 0.2023)),
@@ -66,7 +66,7 @@ def get_cifar100_data(args):
                                                        args.imb_factor, args.imb_type)
 
     list_client2indices = clients_indices(copy.deepcopy(list_label2indices_train_new), args.num_classes,
-                                            args.num_clients, args.non_iid_alpha, args.seed)
+                                            args.num_clients, args.non_iid_alpha, seed_num)
     original_dict_per_client = show_clients_data_distribution(data_local_training, list_client2indices,
                                                                 args.num_classes)
     indices2data = Indices2Dataset(data_local_training)
@@ -74,9 +74,9 @@ def get_cifar100_data(args):
     return list_client2indices, indices2data, data_global_test
 
 # 处理 mnist 数据集
-def get_mnist_data(args):
+def get_mnist_data(args, seed_num):
     # logging.info('Loading mnist data...')
-    random_state = np.random.RandomState(args.seed)
+    random_state = np.random.RandomState(seed_num)
     transform_all = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
@@ -91,7 +91,7 @@ def get_mnist_data(args):
                                                        args.imb_factor, args.imb_type)
 
     list_client2indices = clients_indices(copy.deepcopy(list_label2indices_train_new), args.num_classes,
-                                            args.num_clients, args.non_iid_alpha, args.seed)
+                                            args.num_clients, args.non_iid_alpha, seed_num)
     original_dict_per_client = show_clients_data_distribution(data_local_training, list_client2indices,
                                                                 args.num_classes)
     indices2data = Indices2Dataset(data_local_training)
@@ -216,7 +216,12 @@ def run():
     # 创建数据
     for i in range(args.num_servers):
         # 获取数据
-        list_client2indices, indices2data, data_global_test = get_cifar10_data(args, args.seed + i)
+        if args.datased_ID == 'cifar10':
+            list_client2indices, indices2data, data_global_test = get_cifar10_data(args, args.seed + i)
+        elif args.datased_ID == 'cifar100':
+            list_client2indices, indices2data, data_global_test = get_cifar100_data(args, args.seed + i)
+        elif args.datased_ID == 'mnist':
+            list_client2indices, indices2data, data_global_test = get_mnist_data(args, args.seed + i)
         # 添加到列表
         list_list_client2indices.append(list_client2indices)
         list_indices2data.append(indices2data)
@@ -423,7 +428,12 @@ def fedavg():
     # 创建数据
     for i in range(args.num_servers):
         # 获取数据
-        list_client2indices, indices2data, data_global_test = get_cifar10_data(args, args.seed + i)
+        if args.datased_ID == 'cifar10':
+            list_client2indices, indices2data, data_global_test = get_cifar10_data(args, args.seed + i)
+        elif args.datased_ID == 'cifar100':
+            list_client2indices, indices2data, data_global_test = get_cifar100_data(args, args.seed + i)
+        elif args.datased_ID == 'mnist':
+            list_client2indices, indices2data, data_global_test = get_mnist_data(args, args.seed + i)
         # 添加到列表
         list_list_client2indices.append(list_client2indices)
         list_indices2data.append(indices2data)
@@ -552,7 +562,12 @@ def FedMARL():
     # 创建数据
     for i in range(args.num_servers):
         # 获取数据
-        list_client2indices, indices2data, data_global_test = get_cifar10_data(args, args.seed + i)
+        if args.datased_ID == 'cifar10':
+            list_client2indices, indices2data, data_global_test = get_cifar10_data(args, args.seed + i)
+        elif args.datased_ID == 'cifar100':
+            list_client2indices, indices2data, data_global_test = get_cifar100_data(args, args.seed + i)
+        elif args.datased_ID == 'mnist':
+            list_client2indices, indices2data, data_global_test = get_mnist_data(args, args.seed + i)
         # 添加到列表
         list_list_client2indices.append(list_client2indices)
         list_indices2data.append(indices2data)
