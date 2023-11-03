@@ -56,7 +56,7 @@ class Client(object):
         
     # 配置客户端 调度相关参数
     def setup(self, info):
-        self.workload = [len(data) for data in self.data]
+        self.workload = [len(idxs) for idxs in self.data_index]
         # self.transload = []
         self.W = 0
         self.L = 0
@@ -142,6 +142,62 @@ class Client(object):
         t2 = self.time_l - t1
         E = getEsum(nbf, nbB, t1, t2)
         return bf, bB, t1, t2, E
+    
+    def maxfschedule(self):
+        self.W = float(sum([self.workload[i] for i in self.train_model_ids]))
+        self.L = float(sum([self.transload[i] for i in self.train_model_ids]))
+        self.W = self.W * 32 * 32 * 3 * self.cycPreBit
+        self.h = rayleigh_fading(1, 0.001, 1)
+        bf = max(self.fList) * np.power(10, 9)
+        bB = max(self.BList) * np.power(10, 5)
+        t1 = self.W / bf  
+        t2 = self.time_l - t1
+        if t2 < 1e-4:
+            t2 = 1e-4
+        LBd = self.L / bB
+        if (LBd / t2) > 60:
+            temp = 60
+        else:
+            temp = LBd / t2
+        E = self.C * self.W * np.power(bf, 2) + self.N * t2 / self.h * (np.power(2, temp) - 1)
+        return bf, bB, t1, t2, E
+    
+    def search(self):
+        self.W = float(sum([self.workload[i] for i in self.train_model_ids]))
+        self.L = float(sum([self.transload[i] for i in self.train_model_ids]))
+        self.W = self.W * 32 * 32 * 3 * self.cycPreBit
+        self.h = rayleigh_fading(1, 0.001, 1)
+        def get_E(input):
+            f, B = input
+            f = f * np.power(10, 9)
+            B = B * np.power(10, 5)
+            t1 = self.W / f 
+            t2 = self.time_l - t1
+            if t2 < 1e-4:
+                t2 = 1e-4
+            LBd = self.L / B
+            if (LBd / t2) > 60:
+                temp = 60
+            else:
+                temp = LBd / t2
+            e = self.C * self.W * np.power(f, 2) + self.N * t2 / self.h * (np.power(2, temp) - 1)
+            return e
+        retf = 0;
+        retB = 0;
+        minE = 10000000
+        for f in self.fList:
+            for B in self.BList:
+                input = [f, B]
+                Esum = get_E(input)
+                if Esum < minE:
+                    minE = Esum
+                    retf = f
+                    retB = B
+        t1 = self.W / retf
+        t2 = self.time_l - t1
+        return retf, retB, t1, t2, minE
+
+
 
     def config(self, config):
         config = self.download(config)
@@ -150,17 +206,22 @@ class Client(object):
         self.batch_size = config.batch_size_local_training
         self.lr = config.lr_local_training
         self.num_models = config.num_servers
+        self.schedule_type = config.schedule_type
 
         self.device = config.device
 
         self.models = []
         self.data = []
+        self.dataloader = []
+        self.data_index = []
         self.train_model_ids = []
     
         self.num_classes = config.num_classes
 
         self.E_que = queue.Queue(maxsize=10)
         self.load_que = []
+
+        self.dataset_ID = config.dataset_ID
 
         for i in range(10):
             enqueue(self.E_que, 0)
@@ -183,10 +244,12 @@ class Client(object):
     def set_models(self, model_num):
         self.transload = []
         for model_id in range(model_num):
-            
-            model = ResNet_cifar(resnet_size=8, scaling=4,
-                                        save_activations=False, group_norm_num_groups=None,
-                                        freeze_bn=False, freeze_bn_affine=False, num_classes=self.num_classes).to(self.device)
+            if self.dataset_ID == "cifar10":
+                model = ResNet_cifar(resnet_size=8, scaling=4,
+                                            save_activations=False, group_norm_num_groups=None,
+                                            freeze_bn=False, freeze_bn_affine=False, num_classes=self.num_classes).to(self.device)
+            elif self.dataset_ID == "mnist":
+                pass
             optimizer = optim.SGD(model.parameters(), lr=self.lr)
             criterion = nn.CrossEntropyLoss().to(self.device)
             self.models.append({"model_id": model_id,
@@ -213,6 +276,12 @@ class Client(object):
     def set_data(self, data):
         self.data.append(copy.deepcopy(data))
 
+    def set_dataloader(self, dataloder):
+        self.dataloader.append(dataloder)
+
+    def set_data_index(self, data_index):
+        self.data_index.append(copy.deepcopy(data_index))
+
     # 得到本轮客户端训练结果
     def get_result(self):
         return self.upload(self.report)
@@ -225,11 +294,16 @@ class Client(object):
         logging.info('Training on client #{}'.format(self.client_id))
         # print("Training on client #{}".format(self.client_id))
         self.report = Report(self)  
-        bf, bB, t1, t2, E = self.schedule()
+        if self.schedule_type == 'maxf':
+            bf, bB, t1, t2, E = self.maxfschedule()
+        elif self.schedule_type == 'search':
+            bf, bB, t1, t2, E = self.search()
+        else:
+            bf, bB, t1, t2, E = self.schedule()
         self.last_E = E
-        enqueue(self.E_que, E)
+        # enqueue(self.E_que, E)
         for mid in self.train_model_ids:
-            enqueue(self.load_que[mid], (bf - min(self.fList)) / (max(self.fList) - min(self.fList)) * 100)
+            # enqueue(self.load_que[mid], (bf - min(self.fList)) / (max(self.fList) - min(self.fList)) * 100)
             model = self.models[mid]     
             model_id = model["model_id"]
             model_net = model["model"]
@@ -242,7 +316,9 @@ class Client(object):
             criterion.to(self.device)
             model_net.train()
             for epoch in range(self.epoch):
-                data_loader = DataLoader(dataset=self.data[model_id], 
+                self.dataloader[mid].load(self.data_index[mid])
+                data_l = self.dataloader[mid]
+                data_loader = DataLoader(dataset=data_l, 
                                         batch_size=self.batch_size,  
                                         shuffle=True)
 
@@ -259,7 +335,7 @@ class Client(object):
             self.report.model_list.append(model_id)
             self.report.model_params.append({
                 "model_id": model_id,
-                "num_samples": len(self.data[model_id]),
+                "num_samples": len(self.data_index[model_id]),
                 "local_weights": local_weights
             })
 

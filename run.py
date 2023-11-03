@@ -237,6 +237,7 @@ def run():
     # 联邦学习部分初始化
 
     # 创建 server 对象
+    logging.info('Creating server...')
     for i in range(args.num_servers):
         server_temp = Server(i)
         server_list.append(server_temp)
@@ -244,14 +245,17 @@ def run():
         server_list[i].set_data(list_data_global_test[i])
 
     # 创建 client 对象
+    logging.info('Creating client...')
     for client_id in range(args.num_clients):
         client_list.append(Client(client_id))
         client_list[client_id].config(args)
         # 初始化 client 数据
         for data_id in range(args.num_servers):
-            list_indices2data[data_id].load(list_list_client2indices[data_id][client_id])
-            data_client = list_indices2data[data_id]
-            client_list[client_id].set_data(data_client)
+            # list_indices2data[data_id].load(list_list_client2indices[data_id][client_id])
+            # data_client = list_indices2data[data_id]
+            client_list[client_id].set_data_index(list_list_client2indices[data_id][client_id])
+            client_list[client_id].set_dataloader(list_indices2data[data_id])
+            # client_list[client_id].set_data(list_indices2data[data_id])
         # 初始化 client 模型
         client_list[client_id].set_models(args.num_servers)
         # 初始化 clinet 硬件信息
@@ -262,6 +266,7 @@ def run():
     state_dims = []
     action_dims = []
 
+    logging.info('Creating multi-agent reinforcement learning...')
     for i in range(args.num_servers):
         state_dims.append((args.num_clients * (args.num_clients + 1)))
         action_dims.append(args.num_clients)
@@ -288,6 +293,7 @@ def run():
 
 
     # 强化学习训练过程
+    logging.info('Start training...')
     for r in tqdm(range(1, args.num_marl_train_episodes+1), desc='marl-training'):
         if_unfinish = True
         reset()
@@ -526,6 +532,7 @@ def fedavg():
             acc_list[i].append(acc)
 
         logging.info("episode: {}, acc_last: {}".format(r, acc_last))
+        logging.info("Esum: {}".format(sumE))
 
         # if all item in done is True, if_unfinish = False
         is_finish = all(done)
