@@ -248,7 +248,7 @@ def run():
     # 联邦学习部分初始化
 
     # 创建 server 对象
-    logging.info('Creating server...')
+    # logging.info('Creating server...')
     for i in range(args.num_servers):
         server_temp = Server(i)
         server_list.append(server_temp)
@@ -256,7 +256,7 @@ def run():
         server_list[i].set_data(list_data_global_test[i])
 
     # 创建 client 对象
-    logging.info('Creating client...')
+    # logging.info('Creating client...')
     for client_id in range(args.num_clients):
         client_list.append(Client(client_id))
         client_list[client_id].config(args)
@@ -279,7 +279,7 @@ def run():
 
     total_clients = [i for i in range(args.num_clients)]
 
-    logging.info('Creating multi-agent reinforcement learning...')
+    # logging.info('Creating multi-agent reinforcement learning...')
     for i in range(args.num_servers):
         state_dims.append((args.num_clients * (args.num_clients + 1)))
         action_dims.append(args.num_clients)
@@ -298,7 +298,7 @@ def run():
     epoch_reward_list = [[] for i in range(args.num_servers)]
 
     def reset():
-        logging.info("reset clients and servers...")
+        # logging.info("reset clients and servers...")
         for client in client_list:
             client.reset_state()
         for server in server_list:
@@ -306,7 +306,7 @@ def run():
 
 
     # 强化学习训练过程
-    logging.info('Start training...')
+    # logging.info('Start training...')
     for r in tqdm(range(1, args.num_marl_train_episodes+1), desc='marl-training'):
         if_unfinish = True
         reset()
@@ -387,9 +387,9 @@ def run():
                 reward_val = pow(args.xi, acc - args.target_acc) - 1 + getE_reward(sumE)
                 # reward_val = pow(args.xi, acc - args.target_acc) - 1
                 reward.append(reward_val)
-                wandb.log({"acc_" + (str)(k) + "_" + (str)(i): acc})
+                wandb.log({"acc_" + (str)(r) + "_" + (str)(i): acc})
 
-            logging.info("episode: {}, acc_last: {}".format(k, acc_last))
+            # logging.info("episode: {}, acc_last: {}".format(k, acc_last))
             next_states = client_to_states_param(args.num_servers, client_list, server_list)
             # 处理一下
             next_states = pca_compute(next_states, trans_matrix, args.device)
@@ -418,8 +418,8 @@ def run():
                 for a_i in range(len(server_list)):
                     maddpg.update(sample, a_i)
                 maddpg.update_all_targets()
-                logging.info("step: {}, sum_reward: {}".format(total_step, sum(reward)))
-                logging.info("reward_list: {}".format(reward_list))
+                # logging.info("step: {}, sum_reward: {}".format(total_step, sum(reward)))
+                # logging.info("reward_list: {}".format(reward_list))
                 # print("reward_list: {}".format(reward_list))
             
         for i in range(args.num_servers):
@@ -427,7 +427,7 @@ def run():
             wandb.log({"epoch_reward_" + (str)(i): epoch_reward_list[i][-1]})
             reward_list[i] = []
         
-        logging.info("epoch_reward_list: {}".format(epoch_reward_list))
+        # logging.info("epoch_reward_list: {}".format(epoch_reward_list))
         model_save = model_pth + args.train_mark + '_' + str(r) +'_round_model'
         maddpg.save_model(model_save)
 
@@ -454,7 +454,7 @@ def fedavg():
     log_name = log_pth + args.train_mark + '.log'
     log_format = '%(asctime)s - %(levelname)s - %(message)s'
     logging.basicConfig(filename=log_name, level=logging.DEBUG, format=log_format)
-    logging.info('Running FedAvg...')
+    # logging.info('Running FedAvg...')
     # 获得数据集 分别存储每个模型的数据
     # 标签到设备的索引列表
     list_list_client2indices = []
