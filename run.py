@@ -334,15 +334,12 @@ def run():
                 actions = []
                 for i in range(args.num_servers):
                     selected = []
-                    if not done[i]:
-                        online_clients = random_state.choice(total_clients, args.num_online_clients, replace=False)
-                        for i in range(args.num_clients):
-                            if i in online_clients:
-                                selected.append(1)
-                            else:
-                                selected.append(0)
-                    else:
-                        selected = [0 for i in range(args.num_clients)]
+                    online_clients = random_state.choice(total_clients, args.num_online_clients, replace=False)
+                    for i in range(args.num_clients):
+                        if i in online_clients:
+                            selected.append(1)
+                        else:
+                            selected.append(0)
                     actions.append(selected)
             
             train_client_list, deviceSelection = action_to_deviceSelection(args.num_clients, actions)

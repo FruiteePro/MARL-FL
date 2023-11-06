@@ -20,6 +20,12 @@ def onehot_from_logits(logits, eps=0.01):
         for i, r in enumerate(torch.rand(logits.shape[0]))
     ])
 
+def onehot_logits(logits, eps=0.01):
+    ''' 生成最优动作的独热 (one-hot) 形式 '''
+    argmax_acs = (logits == logits.max(1, keepdim=True)[0]).float()
+    # 生成随机动作,转换成独热形式
+    return argmax_acs
+
 def k_onehot_from_logits(logits, eps=0.01):
     ''' 生成最优动作的独热 (one-hot) 形式 '''
     argmax_acs = (logits == logits.max(1, keepdim=True)[0]).float()
