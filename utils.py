@@ -3,6 +3,9 @@ import torch.nn.functional as F
 import collections
 import random
 import numpy as np
+import threading
+
+shared_lock = threading.Lock()
 
 def onehot_from_logits(logits, eps=0.01):
     ''' 生成最优动作的独热 (one-hot) 形式 '''
@@ -31,12 +34,32 @@ def k_onehot_from_logits(logits, eps=0.01):
         for i, r in enumerate(torch.rand(logits.shape[0]))
     ]), logits
 
-# def khot_from_logits(logits, k):
-#     ''' 生成最优动作的K热编码 (k-hot encoding) 形式 '''
-#     top_k_acs = torch.topk(logits, k, dim=1)[1]
-#     khot_acs = torch.zeros_like(logits)
-#     khot_acs.scatter_(1, top_k_acs, 1)
-#     return khot_acs.float()
+def ktop_from_logits(logits, k):
+    ''' 生成最优动作的K热编码 (k-hot encoding) 形式 '''
+    logits = np.array(logits)
+    logits = torch.tensor(logits)
+    top_k_acs = torch.topk(logits, k, dim=1)[1]
+    khot_acs = torch.zeros_like(logits)
+    khot_acs.scatter_(1, top_k_acs, 1)
+    return khot_acs.float()
+
+def onetop_from_logits(logits, eps=0.01):
+    ''' 生成最优动作的K热编码 (k-hot encoding) 形式 '''
+    logits = np.array(logits)
+    logits = torch.tensor(logits)
+    top_k_acs = torch.topk(logits, 1, dim=1)[1]
+    khot_acs = torch.zeros_like(logits)
+    khot_acs.scatter_(1, top_k_acs, 1)
+    # 生成随机动作,转换成独热形式
+    rand_acs = torch.autograd.Variable(torch.eye(logits.shape[1])[[
+        np.random.choice(range(logits.shape[1]), size=logits.shape[0])
+    ]], requires_grad=False).to(logits.device)
+    # 通过epsilon-贪婪算法来选择用哪个动作
+    return torch.stack([
+        khot_acs[i] if r > eps else rand_acs[i]
+        for i, r in enumerate(torch.rand(logits.shape[0]))
+    ])
+    # return khot_acs.float()
 
 def khot_from_logits(logits, k, eps=0.01):
     ''' 生成最优动作的K热编码 (k-hot encoding) 形式 '''

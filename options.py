@@ -11,7 +11,7 @@ def args_parser():
     parser.add_argument('--path_cifar10', type=str, default=os.path.join(path_dir, 'data/CIFAR10/'))
     parser.add_argument('--path_cifar100', type=str, default=os.path.join(path_dir, 'data/CIFAR100/'))
     parser.add_argument('--path_mnist', type=str, default=os.path.join(path_dir, 'data/MNIST/'))
-    parser.add_argument('--dataset_ID', type=str, default='mnist')
+    parser.add_argument('--dataset_ID', type=str, default='cifar10')
     parser.add_argument('--schedule_type', type=str, default='maxf')
     parser.add_argument('--model_ID', type=str, default='102801')
     parser.add_argument('--model_round_ID', type=str, default='86')

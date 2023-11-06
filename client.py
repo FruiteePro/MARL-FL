@@ -10,7 +10,7 @@ import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
 from torchvision.transforms import ToTensor, transforms
 from Model.Resnet8 import ResNet_cifar
-
+from utils import shared_lock
 
 
 def enqueue(queue_obj, item):
@@ -316,8 +316,12 @@ class Client(object):
             criterion.to(self.device)
             model_net.train()
             for epoch in range(self.epoch):
+                
+                shared_lock.acquire()
                 self.dataloader[mid].load(self.data_index[mid])
-                data_l = self.dataloader[mid]
+                data_l = copy.deepcopy(self.dataloader[mid])
+                shared_lock.release()
+
                 data_loader = DataLoader(dataset=data_l, 
                                         batch_size=self.batch_size,  
                                         shuffle=True)

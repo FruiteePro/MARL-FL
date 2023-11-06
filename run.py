@@ -188,7 +188,7 @@ def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
 def getE_reward(sumE):
-    return sigmoid(1 / sumE) - 0.5
+    return (sigmoid(1 / (sumE + 0.1)) * 0.5) - 0.5
 
 # run
 def run():
@@ -216,11 +216,11 @@ def run():
     # 创建数据
     for i in range(args.num_servers):
         # 获取数据
-        if args.datased_ID == 'cifar10':
+        if args.dataset_ID == 'cifar10':
             list_client2indices, indices2data, data_global_test = get_cifar10_data(args, args.seed + i)
-        elif args.datased_ID == 'cifar100':
+        elif args.dataset_ID == 'cifar100':
             list_client2indices, indices2data, data_global_test = get_cifar100_data(args, args.seed + i)
-        elif args.datased_ID == 'mnist':
+        elif args.dataset_ID == 'mnist':
             list_client2indices, indices2data, data_global_test = get_mnist_data(args, args.seed + i)
         # 添加到列表
         list_list_client2indices.append(list_client2indices)
@@ -265,6 +265,8 @@ def run():
     
     state_dims = []
     action_dims = []
+
+    total_clients = [i for i in range(args.num_clients)]
 
     logging.info('Creating multi-agent reinforcement learning...')
     for i in range(args.num_servers):
@@ -325,7 +327,24 @@ def run():
         for k in tqdm(range(1, args.num_marl_episode_length+1), desc='episode-training'):
             if not if_unfinish:
                 break
-            actions = maddpg.take_action2(states, explore=True)
+            if (total_step > args.minimal_size):
+                actions = maddpg.take_action2(states, explore=True)
+                actions = utils.onetop_from_logits(actions, args.epsilon)
+            else:
+                actions = []
+                for i in range(args.num_servers):
+                    selected = []
+                    if not done[i]:
+                        online_clients = random_state.choice(total_clients, args.num_online_clients, replace=False)
+                        for i in range(args.num_clients):
+                            if i in online_clients:
+                                selected.append(1)
+                            else:
+                                selected.append(0)
+                    else:
+                        selected = [0 for i in range(args.num_clients)]
+                    actions.append(selected)
+            
             train_client_list, deviceSelection = action_to_deviceSelection(args.num_clients, actions)
 
             global_model_params = get_global_model_params(server_list)
@@ -358,6 +377,7 @@ def run():
             sumE = sum(sum_List) / len(sum_List)
             for i, acc in enumerate(acc_last):
                 reward_val = pow(args.xi, acc - args.target_acc) - 1 + getE_reward(sumE)
+                # reward_val = pow(args.xi, acc - args.target_acc) - 1
                 reward.append(reward_val)
 
             logging.info("episode: {}, acc_last: {}".format(k, acc_last))
@@ -434,11 +454,11 @@ def fedavg():
     # 创建数据
     for i in range(args.num_servers):
         # 获取数据
-        if args.datased_ID == 'cifar10':
+        if args.dataset_ID == 'cifar10':
             list_client2indices, indices2data, data_global_test = get_cifar10_data(args, args.seed + i)
-        elif args.datased_ID == 'cifar100':
+        elif args.dataset_ID == 'cifar100':
             list_client2indices, indices2data, data_global_test = get_cifar100_data(args, args.seed + i)
-        elif args.datased_ID == 'mnist':
+        elif args.dataset_ID == 'mnist':
             list_client2indices, indices2data, data_global_test = get_mnist_data(args, args.seed + i)
         # 添加到列表
         list_list_client2indices.append(list_client2indices)
@@ -569,11 +589,11 @@ def FedMARL():
     # 创建数据
     for i in range(args.num_servers):
         # 获取数据
-        if args.datased_ID == 'cifar10':
+        if args.dataset_ID == 'cifar10':
             list_client2indices, indices2data, data_global_test = get_cifar10_data(args, args.seed + i)
-        elif args.datased_ID == 'cifar100':
+        elif args.dataset_ID == 'cifar100':
             list_client2indices, indices2data, data_global_test = get_cifar100_data(args, args.seed + i)
-        elif args.datased_ID == 'mnist':
+        elif args.dataset_ID == 'mnist':
             list_client2indices, indices2data, data_global_test = get_mnist_data(args, args.seed + i)
         # 添加到列表
         list_list_client2indices.append(list_client2indices)
@@ -667,6 +687,7 @@ def FedMARL():
     for r in tqdm(range(1, args.num_rounds+1), desc='fedmarl-running'):
         # 设备选择
         actions = maddpg.take_action(states, done, explore=False)
+        actions = utils.ktop_from_logits(actions, args.num_online_clients)
 
         train_client_list, deviceSelection = action_to_deviceSelection(args.num_clients, actions)
 

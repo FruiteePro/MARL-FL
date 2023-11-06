@@ -4,6 +4,7 @@ import utils
 import logging
 import os
 import copy
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -17,11 +18,22 @@ class TwoLayerNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size,hidden_size)
-        self.fc3 = nn.Linear(hidden_size,output_size)
+        # self.fc2 = nn.Linear(hidden_size, hidden_size)
+        self.fc3 = nn.Linear(hidden_size, output_size)
     def forward(self, x):
         out = F.relu(self.fc1(x))
-        out = F.relu(self.fc2(out))
+        # out = F.relu(self.fc2(out))
+        return torch.tanh(self.fc3(out))
+    
+class QValueNet(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super().__init__()
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        # self.fc2 = nn.Linear(hidden_size, hidden_size)
+        self.fc3 = nn.Linear(hidden_size, output_size)
+    def forward(self, x):
+        out = F.relu(self.fc1(x))
+        # out = F.relu(self.fc2(out))
         return self.fc3(out)
     
 class DDPG:
@@ -29,11 +41,12 @@ class DDPG:
     def __init__(self, ddpg_id, state_dim, action_dim, critic_input_dim, hidden_dim,
                 actor_lr, critic_lr, device, eps=0.1, num_online_clients=1):
         self.ddpg_id = ddpg_id
+        self.action_dim = action_dim
         self.actor = TwoLayerNet(state_dim, hidden_dim, action_dim).to(device)
         self.actor_target = TwoLayerNet(state_dim, hidden_dim, action_dim).to(device)
 
-        self.critic = TwoLayerNet(critic_input_dim, hidden_dim, 1).to(device)
-        self.critic_target = TwoLayerNet(critic_input_dim, hidden_dim, 1).to(device)
+        self.critic = QValueNet(critic_input_dim, hidden_dim, 1).to(device)
+        self.critic_target = QValueNet(critic_input_dim, hidden_dim, 1).to(device)
 
         self.actor_target.load_state_dict(self.actor.state_dict())
         self.critic_target.load_state_dict(self.critic.state_dict())
@@ -47,14 +60,13 @@ class DDPG:
     def take_action(self, state, done, explore=False):
         action = self.actor(state)
         if explore:
-            action = utils.gumbel_softmax(action, self.eps)
+            action = action.detach().cpu().numpy() + 0.1 * np.random.randn(self.action_dim)
+            # action = utils.gumbel_softmax(action, self.eps)
         else:
-            if not done:
-                action = utils.khot_from_logits(action, self.num_online_clients, self.eps)
-            else:
-                # all zero
+            action = action.detach().cpu().numpy() + 0.1 * np.random.randn(self.action_dim)
+            if done:
                 action = torch.zeros_like(action)
-        return action.detach().cpu().numpy()[0]
+        return action[0]
     
     def soft_update(self, net, target_net, tau):
         for target_param, param in zip(target_net.parameters(), net.parameters()):
@@ -87,6 +99,7 @@ class MADDPG:
         self.tau = tau
         self.device = device
         self.critic_criterion = nn.MSELoss()
+        self.action_dim =  action_dims
 
     @property
     def policies(self):
@@ -122,7 +135,7 @@ class MADDPG:
 
         cur_agent.critic_optimizer.zero_grad()
         all_target_act = [
-            utils.onehot_from_logits(pi(_next_obs))
+            pi(_next_obs)
             for pi, _next_obs in zip(self.target_policies, next_obs)
         ]
         target_critic_input = torch.cat((*next_obs, *all_target_act), dim=1)
@@ -136,13 +149,15 @@ class MADDPG:
 
         cur_agent.actor_optimizer.zero_grad()
         cur_actor_out = cur_agent.actor(obs[agent_id])
-        cur_act_vf_in = utils.gumbel_softmax(cur_actor_out, self.eps)
+        cur_act_vf_in = cur_actor_out.detach().cpu().numpy() + 0.1 * np.random.randn(self.action_dim[agent_id])
+        cur_act_vf_in = torch.tensor(cur_act_vf_in).float().to(self.device)
+        # cur_act_vf_in = utils.gumbel_softmax(cur_actor_out, self.eps)
         all_actor_acs = []
         for i, (pi, _obs) in enumerate(zip(self.policies, obs)):
             if i == agent_id:
                 all_actor_acs.append(cur_act_vf_in)
             else:
-                all_actor_acs.append(utils.onehot_from_logits(pi(_obs)))
+                all_actor_acs.append(pi(_obs))
         vf_in = torch.cat((*obs, *all_actor_acs), dim=1)
         actor_loss = -cur_agent.critic(vf_in).mean()
         actor_loss += (cur_actor_out**2).mean() * 1e-3
