@@ -49,6 +49,15 @@ def ktop_from_logits(logits, k):
     khot_acs.scatter_(1, top_k_acs, 1)
     return khot_acs.float()
 
+def onetop_logits(logits):
+    ''' 生成最优动作的K热编码 (k-hot encoding) 形式 '''
+    logits = np.array(logits)
+    logits = torch.tensor(logits)
+    top_k_acs = torch.topk(logits, 1, dim=1)[1]
+    khot_acs = torch.zeros_like(logits)
+    khot_acs.scatter_(1, top_k_acs, 1)
+    return khot_acs.float()
+
 def onetop_from_logits(logits, eps=0.01):
     ''' 生成最优动作的K热编码 (k-hot encoding) 形式 '''
     logits = np.array(logits)

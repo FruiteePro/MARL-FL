@@ -22,6 +22,9 @@ from options import args_parser
 import numpy as np
 from torchvision.transforms import transforms
 from torchvision import datasets
+import wandb
+
+
 
 # 处理 cifar10 数据集
 def get_cifar10_data(args, seed_num):
@@ -213,6 +216,14 @@ def run():
     # 测试数据列表
     list_data_global_test = []
 
+    wandb.init(
+        project="New_Lib" + args.train_mark,
+        config={
+            "dataset": args.dataset_ID,
+            "epochs": args.num_rounds,
+        }
+    )
+
     # 创建数据
     for i in range(args.num_servers):
         # 获取数据
@@ -329,7 +340,7 @@ def run():
                 break
             if (total_step > args.minimal_size):
                 actions = maddpg.take_action2(states, explore=True)
-                actions = utils.onetop_from_logits(actions, args.epsilon)
+                actions = utils.onetop_logits(actions, args.epsilon)
             else:
                 actions = []
                 for i in range(args.num_servers):
@@ -376,6 +387,7 @@ def run():
                 reward_val = pow(args.xi, acc - args.target_acc) - 1 + getE_reward(sumE)
                 # reward_val = pow(args.xi, acc - args.target_acc) - 1
                 reward.append(reward_val)
+                wandb.log({"acc_" + (str)(k) + "_" + (str)(i): acc})
 
             logging.info("episode: {}, acc_last: {}".format(k, acc_last))
             next_states = client_to_states_param(args.num_servers, client_list, server_list)
@@ -412,7 +424,9 @@ def run():
             
         for i in range(args.num_servers):
             epoch_reward_list[i].append(sum(reward_list[i]))
+            wandb.log({"epoch_reward_" + (str)(i): epoch_reward_list[i][-1]})
             reward_list[i] = []
+        
         logging.info("epoch_reward_list: {}".format(epoch_reward_list))
         model_save = model_pth + args.train_mark + '_' + str(r) +'_round_model'
         maddpg.save_model(model_save)
@@ -424,6 +438,7 @@ def run():
     # with open(name, 'w', newline='') as file:
     #     writer = csv.writer(file)
     #     writer.writerows(epoch_reward_list)
+    wandb.finish()
 
 def fedavg():
     # 输入参数

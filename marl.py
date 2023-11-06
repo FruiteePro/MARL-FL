@@ -63,7 +63,7 @@ class DDPG:
             action = action.detach().cpu().numpy() + 0.1 * np.random.randn(self.action_dim)
             # action = utils.gumbel_softmax(action, self.eps)
         else:
-            action = action.detach().cpu().numpy() + 0.1 * np.random.randn(self.action_dim)
+            action = action.detach().cpu().numpy()
             if done:
                 action = torch.zeros_like(action)
         return action[0]
