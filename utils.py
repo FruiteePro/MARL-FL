@@ -64,8 +64,10 @@ def onetop_from_logits(logits, eps=0.01):
 def khot_from_logits(logits, k, eps=0.01):
     ''' 生成最优动作的K热编码 (k-hot encoding) 形式 '''
     new_logits = logits
-    for i in range(k):
-        action, new_logits = k_onehot_from_logits(new_logits, eps)
+    action, new_logits = k_onehot_from_logits(new_logits, eps)
+    for i in range(k - 1):
+        new_action, new_logits = k_onehot_from_logits(new_logits, eps)
+        action = action + new_action
     return action
 
 

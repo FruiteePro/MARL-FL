@@ -489,9 +489,11 @@ def fedavg():
         client_list[client_id].config(args)
         # 初始化 client 数据
         for data_id in range(args.num_servers):
-            list_indices2data[data_id].load(list_list_client2indices[data_id][client_id])
-            data_client = list_indices2data[data_id]
-            client_list[client_id].set_data(data_client)
+            # list_indices2data[data_id].load(list_list_client2indices[data_id][client_id])
+            # data_client = list_indices2data[data_id]
+            # client_list[client_id].set_data(data_client)
+            client_list[client_id].set_data_index(list_list_client2indices[data_id][client_id])
+            client_list[client_id].set_dataloader(list_indices2data[data_id])
         # 初始化 client 模型
         client_list[client_id].set_models(args.num_servers)
         # 初始化 clinet 硬件信息
@@ -622,9 +624,11 @@ def FedMARL():
         client_list[client_id].config(args)
         # 初始化 client 数据
         for data_id in range(args.num_servers):
-            list_indices2data[data_id].load(list_list_client2indices[data_id][client_id])
-            data_client = list_indices2data[data_id]
-            client_list[client_id].set_data(data_client)
+            # list_indices2data[data_id].load(list_list_client2indices[data_id][client_id])
+            # data_client = list_indices2data[data_id]
+            # client_list[client_id].set_data(data_client)
+            client_list[client_id].set_data_index(list_list_client2indices[data_id][client_id])
+            client_list[client_id].set_dataloader(list_indices2data[data_id])
         # 初始化 client 模型
         client_list[client_id].set_models(args.num_servers)
         # 初始化 clinet 硬件信息
@@ -665,8 +669,8 @@ def FedMARL():
     deviceSelection = [[i for i in range(args.num_servers)] for j in range(args.num_clients)]
     global_model_params = get_global_model_params(server_list)
     for client_id in train_client_list:
-            client_list[client_id].update_models(global_model_params, deviceSelection)
-            client_list[client_id].set_time_limit(5)
+        client_list[client_id].update_models(global_model_params, deviceSelection)
+        client_list[client_id].set_time_limit(5)
 
     # for client_id in train_client_list:
     #     client_list[client_id].train_models()
