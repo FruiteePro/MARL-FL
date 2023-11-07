@@ -294,7 +294,6 @@ def run():
     if args.model_ID != '0' :
         marl_model_id_idx = model_pth + args.model_ID + '_' + args.model_round_ID + '_round_model_ddpg_'
         maddpg.load_model(marl_model_id_idx)
-        args.minimal_size = 0
 
     # states = client_to_states(args.num_servers, client_list)
 
