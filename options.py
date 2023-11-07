@@ -13,7 +13,7 @@ def args_parser():
     parser.add_argument('--path_mnist', type=str, default=os.path.join(path_dir, 'data/MNIST/'))
     parser.add_argument('--dataset_ID', type=str, default='cifar10')
     parser.add_argument('--schedule_type', type=str, default='maxf')
-    parser.add_argument('--model_ID', type=str, default='102801')
+    parser.add_argument('--model_ID', type=str, default='0')
     parser.add_argument('--model_round_ID', type=str, default='86')
     parser.add_argument('--num_classes', type=int, default=10)
     parser.add_argument('--num_clients', type=int, default=20)

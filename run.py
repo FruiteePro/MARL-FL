@@ -291,6 +291,10 @@ def run():
     replay_buffer = utils.ReplayBuffer(args.buffer_size)
     total_step = 0
 
+    if args.model_ID != '0' :
+        marl_model_id_idx = model_pth + args.model_ID + '_' + args.model_round_ID + '_round_model_ddpg_'
+        maddpg.load_model(marl_model_id_idx)
+
     # states = client_to_states(args.num_servers, client_list)
 
     reward_list = [[] for i in range(args.num_servers)]
@@ -340,7 +344,7 @@ def run():
                 break
             if (total_step > args.minimal_size):
                 actions = maddpg.take_action2(states, explore=True)
-                actions = utils.onetop_logits(actions, args.epsilon)
+                actions = utils.onetop_logits(actions)
             else:
                 actions = []
                 for i in range(args.num_servers):
