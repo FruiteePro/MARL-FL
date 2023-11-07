@@ -17,7 +17,6 @@ from threading import Thread
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from Model.Resnet8 import ResNet_cifar
 from options import args_parser
 import numpy as np
 from torchvision.transforms import transforms
@@ -342,7 +341,7 @@ def run():
         for k in tqdm(range(1, args.num_marl_episode_length+1), desc='episode-training'):
             if not if_unfinish:
                 break
-            if (total_step > args.minimal_size):
+            if args.model_ID != '0' or total_step > args.minimal_size:
                 actions = maddpg.take_action2(states, explore=True)
                 actions = utils.onetop_logits(actions)
             else:

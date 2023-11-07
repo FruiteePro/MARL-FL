@@ -10,6 +10,7 @@ import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
 from torchvision.transforms import ToTensor, transforms
 from Model.Resnet8 import ResNet_cifar
+from Model.MnistCNN import MnistCNN
 from utils import shared_lock
 
 
@@ -249,7 +250,7 @@ class Client(object):
                                             save_activations=False, group_norm_num_groups=None,
                                             freeze_bn=False, freeze_bn_affine=False, num_classes=self.num_classes).to(self.device)
             elif self.dataset_ID == "mnist":
-                pass
+                model = MnistCNN().to(self.device)
             optimizer = optim.SGD(model.parameters(), lr=self.lr)
             criterion = nn.CrossEntropyLoss().to(self.device)
             self.models.append({"model_id": model_id,
@@ -309,9 +310,15 @@ class Client(object):
             model_net = model["model"]
             optimizer = model["optimizer"]
             criterion = model["criterion"]
-            transform_train = transforms.Compose([
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip()])
+            if self.dataset_ID == "cifar10":
+                transform_train = transforms.Compose([
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip()])
+            elif self.dataset_ID == "mnist":
+                transform_train = transforms.Compose([
+                    transforms.RandomCrop(28, padding=4),
+                    # 随机水平翻转
+                    transforms.RandomHorizontalFlip()])
             model_net.to(self.device)
             criterion.to(self.device)
             model_net.train()
@@ -324,7 +331,8 @@ class Client(object):
 
                 data_loader = DataLoader(dataset=data_l, 
                                         batch_size=self.batch_size,  
-                                        shuffle=True)
+                                        shuffle=True,
+                                        num_workers=4)
 
                 for data_batch in data_loader:
                     data, target = data_batch
@@ -345,9 +353,12 @@ class Client(object):
 
     def reset_state(self):
         for model_id in range(self.num_models):
-            neo_model = ResNet_cifar(resnet_size=8, scaling=4,
-                                        save_activations=False, group_norm_num_groups=None,
-                                        freeze_bn=False, freeze_bn_affine=False, num_classes=self.num_classes).to(self.device)
+            if self.dataset_ID == "cifar10":
+                neo_model = ResNet_cifar(resnet_size=8, scaling=4,
+                                            save_activations=False, group_norm_num_groups=None,
+                                            freeze_bn=False, freeze_bn_affine=False, num_classes=self.num_classes).to(self.device)
+            elif self.dataset_ID == "mnist":
+                neo_model = MnistCNN().to(self.device)
             self.models[model_id]["model"].load_state_dict(neo_model.state_dict())
          
 

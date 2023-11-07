@@ -8,6 +8,7 @@ import torch.optim as optim
 from torch import no_grad, eq
 from torch.utils.data.dataloader import DataLoader
 from Model.Resnet8 import ResNet_cifar
+from Model.MnistCNN import MnistCNN
 
 
 class Server(object):
@@ -22,7 +23,11 @@ class Server(object):
         self.device = self.config.device
         self.fedavg_acc = []
         # global 模型
-        self.syn_model = ResNet_cifar(resnet_size=8, scaling=4,
+        self.dataset_ID = self.config.dataset_ID
+        if self.dataset_ID == 'mnist':
+            self.syn_model = MnistCNN().to(self.device)
+        else:
+            self.syn_model = ResNet_cifar(resnet_size=8, scaling=4,
                                       save_activations=False, group_norm_num_groups=None,
                                       freeze_bn=False, freeze_bn_affine=False, num_classes=self.config.num_classes).to(self.device)
         self.clients = []
@@ -91,9 +96,12 @@ class Server(object):
     def reset_state(self):
         self.clients.clear()
         self.fedavg_acc.clear()
-        neo_model = ResNet_cifar(resnet_size=8, scaling=4,
-                                      save_activations=False, group_norm_num_groups=None,
-                                      freeze_bn=False, freeze_bn_affine=False, num_classes=self.config.num_classes).to(self.device)
+        if self.dataset_ID == 'mnist':
+            neo_model = MnistCNN().to(self.device)
+        else:
+            neo_model = ResNet_cifar(resnet_size=8, scaling=4,
+                                        save_activations=False, group_norm_num_groups=None,
+                                        freeze_bn=False, freeze_bn_affine=False, num_classes=self.config.num_classes).to(self.device)
         self.syn_model.load_state_dict(neo_model.state_dict())
 
     def get_state_params(self):

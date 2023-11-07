@@ -10,3 +10,4 @@ model_saved/
 *.pth
 .DS_Store
 wandb/
+test.py
